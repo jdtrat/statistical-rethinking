@@ -1,0 +1,74 @@
+---
+title: "Chapter 2"
+author: "Jonathan Trattner"
+date: "1/17/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(rethinking)
+```
+
+```{r code-2.3}
+# Define grid of possible parameter values
+# (possible proportion of Earth that is water)
+
+p_grid <- seq(0, 1, length.out = 20)
+
+# Define prior (uniform distribution)
+prior <- rep(1, 20)
+
+# Define the likelihood that we see 6 "water" observations out of 9 total
+# samples given the proportion of water is p_grid
+likelihood <- dbinom(6, size = 9, prob = p_grid)
+
+# Posterior is proportional to likelihood times the prior
+unstd.post <- likelihood * prior
+
+# Standardize the posterior
+
+post <- unstd.post / sum(unstd.post)
+
+# Plot!
+plot(p_grid, post, "b",
+     xlab = "Probability of Water",
+     ylab = "Posterior Probability")
+
+```
+
+```{r 2.6}
+
+# Quadratic Approximation of Globe Problem
+globe_quap <- rethinking::quap(
+  alist(
+    water_obs ~ dbinom(water_obs + land_obs, p),
+    p ~ dunif(0, 1)
+  ),
+  data = list(water_obs = 6, land_obs = 3)
+)
+
+rethinking::precis(globe_quap)
+
+```
+
+```{r 2.8}
+
+# MCMC
+n_samples <- 1000
+p <- rep(NA, n_samples)
+p[1] <- 0.5
+W <- 6
+L <- 3
+for (i in 2:n_samples) {
+  p_new <- rnorm(1, mean = p[i - 1], sd = 0.1)
+  if (p_new <- 0) p_new <- abs(p_new)
+  if (p_new > 1) p_new <- 2 - p_new
+  q0 <- dbinom(W, W+L, p[i-1])
+  q1 <- dbinom(W, W+L, p_new)
+  p[i] <- ifelse(runif(1) < q1/q0, p_new, p[i-1])
+}
+
+rethinking::dens(p, xlim = c(0,1))
+
+```
+
